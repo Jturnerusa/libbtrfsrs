@@ -1,11 +1,9 @@
 use crate::{item::FileExtentInline, item::FileExtentReg};
 
 use btrfs_sys::{
-    ctree::{
-        btrfs_file_extent_item, BTRFS_EXTENT_DATA_KEY, BTRFS_FILE_EXTENT_INLINE,
-        BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG,
-    },
-    ioctl::{btrfs_ioctl_search_header, btrfs_ioctl_search_key, BTRFS_IOCTL_MAGIC},
+    btrfs_file_extent_item, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
+    BTRFS_EXTENT_DATA_KEY, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
+    BTRFS_FILE_EXTENT_REG, BTRFS_IOCTL_MAGIC,
 };
 
 use std::{fs::File, mem, ops::Range, os::fd::AsRawFd, slice};

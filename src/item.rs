@@ -1,4 +1,4 @@
-use btrfs_sys::ctree::{
+use btrfs_sys::{
     btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
     btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
     btrfs_file_extent_item,
