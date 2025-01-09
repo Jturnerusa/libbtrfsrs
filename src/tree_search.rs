@@ -1,9 +1,9 @@
-use crate::{item::FileExtentInline, item::FileExtentReg};
+use crate::item::{FileExtentInline, FileExtentReg, Root};
 
 use btrfs_sys::{
-    btrfs_file_extent_item, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
+    btrfs_file_extent_item, btrfs_ioctl_search_header, btrfs_ioctl_search_key, btrfs_root_item,
     BTRFS_EXTENT_DATA_KEY, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
-    BTRFS_FILE_EXTENT_REG, BTRFS_IOCTL_MAGIC,
+    BTRFS_FILE_EXTENT_REG, BTRFS_IOCTL_MAGIC, BTRFS_ROOT_ITEM_KEY,
 };
 
 use std::{fs::File, mem, ops::Range, os::fd::AsRawFd, slice};
@@ -23,6 +23,7 @@ pub struct TreeSearchArgs {
 
 #[derive(Clone, Debug)]
 pub enum Item {
+    Root(Root),
     FileExtentReg(FileExtentReg),
     FileExtentInline(FileExtentInline),
 }
@@ -118,6 +119,16 @@ impl Iterator for TreeSearch {
         };
 
         let item = match header.type_ {
+            BTRFS_ROOT_ITEM_KEY => {
+                let root = unsafe {
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_root_item>()..]
+                        .as_ptr()
+                        .cast::<btrfs_root_item>()
+                        .read_unaligned()
+                };
+
+                Item::Root(Root::from_c_struct(root))
+            }
             BTRFS_EXTENT_DATA_KEY => {
                 let file_extent = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
