@@ -1,17 +1,17 @@
 use crate::item::{Dir, FileExtentInline, FileExtentReg, Root};
 
 use btrfs_sys::{
-    btrfs_dir_item, btrfs_file_extent_item, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
-    btrfs_root_item, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_CHUNK_ITEM_KEY, BTRFS_DEV_EXTENT_KEY,
-    BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY, BTRFS_DIR_INDEX_KEY,
-    BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY, BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY,
-    BTRFS_EXTENT_ITEM_KEY, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
-    BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY, BTRFS_FREE_SPACE_EXTENT_KEY,
-    BTRFS_FREE_SPACE_INFO_KEY, BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY,
-    BTRFS_IOCTL_MAGIC, BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY,
-    BTRFS_QGROUP_LIMIT_KEY, BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY,
-    BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY, BTRFS_TEMPORARY_ITEM_KEY,
-    BTRFS_UUID_KEY_RECEIVED_SUBVOL, BTRFS_UUID_KEY_SUBVOL,
+    btrfs_dir_item, btrfs_file_extent_item, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header,
+    btrfs_ioctl_search_key, btrfs_root_item, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_CHUNK_ITEM_KEY,
+    BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY,
+    BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY, BTRFS_EXTENT_CSUM_KEY,
+    BTRFS_EXTENT_DATA_KEY, BTRFS_EXTENT_ITEM_KEY, BTRFS_FILE_EXTENT_INLINE,
+    BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY,
+    BTRFS_FREE_SPACE_EXTENT_KEY, BTRFS_FREE_SPACE_INFO_KEY, BTRFS_INODE_EXTREF_KEY,
+    BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY, BTRFS_IOCTL_MAGIC, BTRFS_METADATA_ITEM_KEY,
+    BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY, BTRFS_QGROUP_LIMIT_KEY,
+    BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY, BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY,
+    BTRFS_TEMPORARY_ITEM_KEY, BTRFS_UUID_KEY_RECEIVED_SUBVOL, BTRFS_UUID_KEY_SUBVOL,
 };
 
 use core::{mem, slice};
@@ -19,7 +19,12 @@ use std::{fs::File, ops::Range, os::fd::AsRawFd};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
 
-nix::ioctl_readwrite!(btrfs_tree_search, BTRFS_IOCTL_MAGIC, 17, TreeSearchArgs);
+nix::ioctl_readwrite!(
+    btrfs_tree_search,
+    BTRFS_IOCTL_MAGIC,
+    17,
+    btrfs_ioctl_search_args_v2
+);
 
 #[repr(C)]
 #[allow(dead_code)]
@@ -104,7 +109,12 @@ impl Iterator for TreeSearch {
             self.bp = 0;
             self.args.key.nr_items = u32::MAX;
 
-            match unsafe { btrfs_tree_search(self.file.as_raw_fd(), &mut self.args as *mut _) } {
+            match unsafe {
+                btrfs_tree_search(
+                    self.file.as_raw_fd(),
+                    (&mut self.args as *mut TreeSearchArgs).cast::<btrfs_ioctl_search_args_v2>(),
+                )
+            } {
                 Ok(_) => (),
                 Err(e) => return Some(Err(e)),
             }
