@@ -2,8 +2,16 @@ use crate::item::{FileExtentInline, FileExtentReg, Root};
 
 use btrfs_sys::{
     btrfs_file_extent_item, btrfs_ioctl_search_header, btrfs_ioctl_search_key, btrfs_root_item,
-    BTRFS_EXTENT_DATA_KEY, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
-    BTRFS_FILE_EXTENT_REG, BTRFS_IOCTL_MAGIC, BTRFS_ROOT_ITEM_KEY,
+    BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_CHUNK_ITEM_KEY, BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY,
+    BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY, BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY,
+    BTRFS_DIR_LOG_ITEM_KEY, BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY, BTRFS_EXTENT_ITEM_KEY,
+    BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG,
+    BTRFS_FREE_SPACE_BITMAP_KEY, BTRFS_FREE_SPACE_EXTENT_KEY, BTRFS_FREE_SPACE_INFO_KEY,
+    BTRFS_FREE_SPACE_OBJECTID, BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY,
+    BTRFS_IOCTL_MAGIC, BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY,
+    BTRFS_QGROUP_LIMIT_KEY, BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY,
+    BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY, BTRFS_TEMPORARY_ITEM_KEY,
+    BTRFS_UUID_KEY_RECEIVED_SUBVOL, BTRFS_UUID_KEY_SUBVOL,
 };
 
 use std::{fs::File, mem, ops::Range, os::fd::AsRawFd, slice};
@@ -129,6 +137,14 @@ impl Iterator for TreeSearch {
 
                 Item::Root(Root::from_c_struct(root))
             }
+            BTRFS_ROOT_REF_KEY => todo!("root ref item"),
+            BTRFS_INODE_ITEM_KEY => todo!("inode item"),
+            BTRFS_CHUNK_ITEM_KEY => todo!("chunk item"),
+            BTRFS_DEV_ITEM_KEY => todo!("dev item"),
+            BTRFS_DEV_EXTENT_KEY => todo!("dev extent item"),
+            BTRFS_DEV_STATS_KEY => todo!("dev stats item"),
+            BTRFS_DEV_REPLACE_KEY => todo!("dev replace item"),
+            BTRFS_BLOCK_GROUP_ITEM_KEY => todo!("block group item"),
             BTRFS_EXTENT_DATA_KEY => {
                 let file_extent = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
@@ -159,9 +175,29 @@ impl Iterator for TreeSearch {
                             data,
                         ))
                     }
+
                     _ => unreachable!(),
                 }
             }
+            BTRFS_EXTENT_ITEM_KEY => todo!("extent item"),
+            BTRFS_METADATA_ITEM_KEY => todo!("metadata item"),
+            BTRFS_EXTENT_CSUM_KEY => todo!("checksum item"),
+            BTRFS_FREE_SPACE_INFO_KEY => todo!("free space info item"),
+            BTRFS_FREE_SPACE_EXTENT_KEY => todo!("free space extent item"),
+            BTRFS_FREE_SPACE_BITMAP_KEY => todo!("free space bitmap item"),
+            0 => todo!("free space header item"),
+            BTRFS_DIR_ITEM_KEY => todo!("dir item"),
+            BTRFS_DIR_INDEX_KEY => todo!("dir index item"),
+            BTRFS_INODE_REF_KEY => todo!("inode ref item"),
+            BTRFS_INODE_EXTREF_KEY => todo!("inode extref item"),
+            BTRFS_QGROUP_STATUS_KEY => todo!("qgroup status item"),
+            BTRFS_QGROUP_INFO_KEY => todo!("qgroup info item"),
+            BTRFS_QGROUP_LIMIT_KEY => todo!("qgroup limit item"),
+            BTRFS_QGROUP_RELATION_KEY => todo!("qgroup relation item"),
+            BTRFS_ORPHAN_ITEM_KEY => todo!("orphan item"),
+            BTRFS_DIR_LOG_ITEM_KEY => todo!("dir log item"),
+            BTRFS_TEMPORARY_ITEM_KEY => todo!("balance item"),
+            BTRFS_UUID_KEY_SUBVOL | BTRFS_UUID_KEY_RECEIVED_SUBVOL => todo!("uuid item"),
             _ => todo!("{}", header.type_),
         };
 
