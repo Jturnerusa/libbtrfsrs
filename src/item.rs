@@ -1,10 +1,12 @@
-use std::time;
+use core::unreachable;
+use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 
 use btrfs_sys::{
     btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
     btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
-    btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_root_item,
-    BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
+    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_root_item,
+    BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO, BTRFS_FT_REG_FILE,
+    BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
 };
 
 use crate::{le, Compression};
@@ -69,6 +71,33 @@ pub struct RootRef {
     dirid: le::U64,
     sequence: le::U64,
     name_len: le::U16,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FileType {
+    Reg,
+    Dir,
+    ChrDev,
+    BlkDev,
+    Fifo,
+    Sock,
+    Sym,
+}
+
+#[derive(Clone, Debug)]
+pub enum Dir {
+    Xattr {
+        location: DiskKey,
+        transid: le::U64,
+        name: Vec<u8>,
+        value: Vec<u8>,
+    },
+    File {
+        location: DiskKey,
+        transid: le::U64,
+        name: PathBuf,
+        r#type: FileType,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -159,6 +188,33 @@ impl Root {
                 + time::Duration::from_nanos(root.rtime.nsec as u64),
             stime: time::Duration::from_secs(root.stime.sec)
                 + time::Duration::from_nanos(root.stime.nsec as u64),
+        }
+    }
+}
+
+impl Dir {
+    pub(crate) fn from_c_struct(dir: btrfs_dir_item, data: &[u8]) -> Self {
+        match dir.type_ as u32 {
+            BTRFS_FT_XATTR => Self::Xattr {
+                location: DiskKey::from_c_struct(dir.location),
+                transid: le::U64::new(dir.transid),
+                name: data[..dir.name_len as usize].to_vec(),
+                value: data[dir.data_len as usize..].to_vec(),
+            },
+            _ => Self::File {
+                location: DiskKey::from_c_struct(dir.location),
+                transid: le::U64::new(dir.transid),
+                r#type: match dir.type_ as u32 {
+                    BTRFS_FT_REG_FILE => FileType::Reg,
+                    BTRFS_FT_DIR => FileType::Dir,
+                    BTRFS_FT_CHRDEV => FileType::ChrDev,
+                    BTRFS_FT_BLKDEV => FileType::BlkDev,
+                    BTRFS_FT_FIFO => FileType::Fifo,
+                    BTRFS_FT_SYMLINK => FileType::Sym,
+                    _ => unreachable!(),
+                },
+                name: PathBuf::from(<OsStr as OsStrExt>::from_bytes(data)),
+            },
         }
     }
 }
