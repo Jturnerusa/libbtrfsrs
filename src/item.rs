@@ -39,12 +39,6 @@ pub struct DiskKey {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum RootFlag {
-    ReadOnly,
-    Dead,
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct Root {
     inode: Inode,
     generation: le::U64,
@@ -53,7 +47,7 @@ pub struct Root {
     byte_limit: le::U64,
     bytes_used: le::U64,
     last_snapshot: le::U64,
-    flags: RootFlag,
+    read_only: bool,
     refs: bool,
     btrfs_disk_key: DiskKey,
     level: u8,
@@ -142,10 +136,7 @@ impl Root {
             byte_limit: le::U64::new(root.byte_limit),
             bytes_used: le::U64::new(root.bytes_used),
             last_snapshot: le::U64::new(root.last_snapshot),
-            flags: match root.flags as u32 {
-                BTRFS_ROOT_SUBVOL_RDONLY => RootFlag::ReadOnly,
-                _ => unreachable!("internal only flag?"),
-            },
+            read_only: matches!(root.flags as u32, BTRFS_ROOT_SUBVOL_RDONLY),
             refs: match root.refs {
                 0 => false,
                 1 => true,
