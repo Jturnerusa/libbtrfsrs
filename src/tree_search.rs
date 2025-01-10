@@ -44,7 +44,6 @@ pub struct TreeSearch {
     args: TreeSearchArgs,
     file: File,
     bp: usize,
-    items: u32,
 }
 
 impl TreeSearchArgs {
@@ -90,16 +89,10 @@ impl TreeSearch {
         offsets: Range<u64>,
         transids: Range<u64>,
         types: Range<u32>,
-        items: u32,
     ) -> Self {
         let args = TreeSearchArgs::new(tree_id, objectids, offsets, transids, types, 0);
 
-        Self {
-            args,
-            file,
-            bp: 0,
-            items,
-        }
+        Self { args, file, bp: 0 }
     }
 }
 
@@ -109,7 +102,7 @@ impl Iterator for TreeSearch {
     fn next(&mut self) -> Option<Self::Item> {
         if self.args.key.nr_items == 0 {
             self.bp = 0;
-            self.args.key.nr_items = self.items;
+            self.args.key.nr_items = u32::MAX;
 
             match unsafe { btrfs_tree_search(self.file.as_raw_fd(), &mut self.args as *mut _) } {
                 Ok(_) => (),
