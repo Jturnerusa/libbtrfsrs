@@ -156,7 +156,7 @@ impl Iterator for TreeSearch {
         let item = match header.type_ {
             BTRFS_ROOT_ITEM_KEY => {
                 let root = unsafe {
-                    self.args.buffer[self.bp + mem::size_of::<btrfs_root_item>()..]
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
                         .cast::<btrfs_root_item>()
                         .read_unaligned()
