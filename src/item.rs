@@ -4,8 +4,8 @@ use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 use btrfs_sys::{
     btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
     btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
-    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_root_item,
-    btrfs_root_ref, BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO,
+    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_inode_ref,
+    btrfs_root_item, btrfs_root_ref, BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO,
     BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
 };
 
@@ -31,6 +31,12 @@ pub struct Inode {
     ctime: time::Duration,
     mtime: time::Duration,
     otime: time::Duration,
+}
+
+#[derive(Clone, Debug)]
+pub struct InodeRef {
+    index: le::U64,
+    name: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -141,6 +147,15 @@ impl Inode {
                 + time::Duration::from_nanos(inode.mtime.nsec as u64),
             otime: time::Duration::from_secs(inode.otime.sec)
                 + time::Duration::from_nanos(inode.otime.nsec as u64),
+        }
+    }
+}
+
+impl InodeRef {
+    pub(crate) fn from_c_struct(inode_ref: btrfs_inode_ref, data: &[u8]) -> Self {
+        Self {
+            index: le::U64::new(inode_ref.index),
+            name: PathBuf::from(<OsStr as OsStrExt>::from_bytes(data)),
         }
     }
 }

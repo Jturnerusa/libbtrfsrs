@@ -1,21 +1,22 @@
-use crate::item::{Dir, FileExtentInline, FileExtentReg, Inode, Root, RootRef};
+use crate::item::{Dir, FileExtentInline, FileExtentReg, Inode, InodeRef, Root, RootRef};
 
 use btrfs_sys::{
-    btrfs_dir_item, btrfs_file_extent_item, btrfs_inode_item, btrfs_ioctl_search_args_v2,
-    btrfs_ioctl_search_header, btrfs_ioctl_search_key, btrfs_root_item, btrfs_root_ref,
-    BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_BLOCK_GROUP_TREE_OBJECTID, BTRFS_CHUNK_ITEM_KEY,
-    BTRFS_CHUNK_TREE_OBJECTID, BTRFS_CSUM_TREE_OBJECTID, BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY,
-    BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY, BTRFS_DEV_TREE_OBJECTID, BTRFS_DIR_INDEX_KEY,
-    BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY, BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY,
-    BTRFS_EXTENT_ITEM_KEY, BTRFS_EXTENT_TREE_OBJECTID, BTRFS_FILE_EXTENT_INLINE,
-    BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY,
-    BTRFS_FREE_SPACE_EXTENT_KEY, BTRFS_FREE_SPACE_INFO_KEY, BTRFS_FREE_SPACE_OBJECTID,
-    BTRFS_FS_TREE_OBJECTID, BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY,
-    BTRFS_IOCTL_MAGIC, BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY,
-    BTRFS_QGROUP_LIMIT_KEY, BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY,
-    BTRFS_QUOTA_TREE_OBJECTID, BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY,
-    BTRFS_ROOT_TREE_DIR_OBJECTID, BTRFS_ROOT_TREE_OBJECTID, BTRFS_TEMPORARY_ITEM_KEY,
-    BTRFS_UUID_KEY_RECEIVED_SUBVOL, BTRFS_UUID_KEY_SUBVOL, BTRFS_UUID_TREE_OBJECTID,
+    btrfs_dir_item, btrfs_file_extent_item, btrfs_inode_item, btrfs_inode_ref,
+    btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header, btrfs_ioctl_search_key, btrfs_root_item,
+    btrfs_root_ref, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
+    BTRFS_CHUNK_ITEM_KEY, BTRFS_CHUNK_TREE_OBJECTID, BTRFS_CSUM_TREE_OBJECTID,
+    BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY,
+    BTRFS_DEV_TREE_OBJECTID, BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY,
+    BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY, BTRFS_EXTENT_ITEM_KEY,
+    BTRFS_EXTENT_TREE_OBJECTID, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
+    BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY, BTRFS_FREE_SPACE_EXTENT_KEY,
+    BTRFS_FREE_SPACE_INFO_KEY, BTRFS_FREE_SPACE_OBJECTID, BTRFS_FS_TREE_OBJECTID,
+    BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY, BTRFS_IOCTL_MAGIC,
+    BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY, BTRFS_QGROUP_LIMIT_KEY,
+    BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY, BTRFS_QUOTA_TREE_OBJECTID,
+    BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY, BTRFS_ROOT_TREE_DIR_OBJECTID,
+    BTRFS_ROOT_TREE_OBJECTID, BTRFS_TEMPORARY_ITEM_KEY, BTRFS_UUID_KEY_RECEIVED_SUBVOL,
+    BTRFS_UUID_KEY_SUBVOL, BTRFS_UUID_TREE_OBJECTID,
 };
 
 use core::{mem, slice};
@@ -48,6 +49,7 @@ pub enum Item {
     FileExtentInline(FileExtentInline),
     Dir(Dir),
     Inode(Inode),
+    InodeRef(InodeRef),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -265,7 +267,27 @@ impl Iterator for TreeSearch {
                 Item::Dir(Dir::from_c_struct(dir, slice))
             }
             BTRFS_DIR_INDEX_KEY => todo!("dir index item"),
-            BTRFS_INODE_REF_KEY => todo!("inode ref item"),
+            BTRFS_INODE_REF_KEY => {
+                let inode_ref = unsafe {
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
+                        .as_ptr()
+                        .cast::<btrfs_inode_ref>()
+                        .read_unaligned()
+                };
+
+                let name_offset = self.bp
+                    + mem::size_of::<btrfs_ioctl_search_header>()
+                    + mem::size_of::<btrfs_inode_ref>();
+
+                let slice = unsafe {
+                    slice::from_raw_parts(
+                        self.args.buffer[name_offset..].as_ptr(),
+                        inode_ref.name_len as usize,
+                    )
+                };
+
+                Item::InodeRef(InodeRef::from_c_struct(inode_ref, slice))
+            }
             BTRFS_INODE_EXTREF_KEY => todo!("inode extref item"),
             BTRFS_QGROUP_STATUS_KEY => todo!("qgroup status item"),
             BTRFS_QGROUP_INFO_KEY => todo!("qgroup info item"),
