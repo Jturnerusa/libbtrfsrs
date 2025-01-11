@@ -1,12 +1,12 @@
-use core::unreachable;
+use core::{convert::From, unreachable};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 
 use btrfs_sys::{
     btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
     btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
     btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_root_item,
-    BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO, BTRFS_FT_REG_FILE,
-    BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
+    btrfs_root_ref, BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO,
+    BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
 };
 
 use crate::{le, Compression};
@@ -66,11 +66,11 @@ pub struct Root {
     rtime: time::Duration,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct RootRef {
     dirid: le::U64,
     sequence: le::U64,
-    name_len: le::U16,
+    name: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -188,6 +188,16 @@ impl Root {
                 + time::Duration::from_nanos(root.rtime.nsec as u64),
             stime: time::Duration::from_secs(root.stime.sec)
                 + time::Duration::from_nanos(root.stime.nsec as u64),
+        }
+    }
+}
+
+impl RootRef {
+    pub(crate) fn from_c_struct(root_ref: btrfs_root_ref, data: &[u8]) -> Self {
+        Self {
+            dirid: le::U64::new(root_ref.dirid),
+            sequence: le::U64::new(root_ref.sequence),
+            name: PathBuf::from(<OsStr as OsStrExt>::from_bytes(data)),
         }
     }
 }

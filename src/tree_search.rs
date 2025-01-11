@@ -1,8 +1,8 @@
-use crate::item::{Dir, FileExtentInline, FileExtentReg, Root};
+use crate::item::{Dir, FileExtentInline, FileExtentReg, Root, RootRef};
 
 use btrfs_sys::{
     btrfs_dir_item, btrfs_file_extent_item, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header,
-    btrfs_ioctl_search_key, btrfs_root_item, BTRFS_BLOCK_GROUP_ITEM_KEY,
+    btrfs_ioctl_search_key, btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_ITEM_KEY,
     BTRFS_BLOCK_GROUP_TREE_OBJECTID, BTRFS_CHUNK_ITEM_KEY, BTRFS_CHUNK_TREE_OBJECTID,
     BTRFS_CSUM_TREE_OBJECTID, BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY,
     BTRFS_DEV_STATS_KEY, BTRFS_DEV_TREE_OBJECTID, BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY,
@@ -43,6 +43,7 @@ pub struct TreeSearchArgs {
 #[derive(Clone, Debug)]
 pub enum Item {
     Root(Root),
+    RootRef(RootRef),
     FileExtentReg(FileExtentReg),
     FileExtentInline(FileExtentInline),
     Dir(Dir),
@@ -163,7 +164,27 @@ impl Iterator for TreeSearch {
 
                 Item::Root(Root::from_c_struct(root))
             }
-            BTRFS_ROOT_REF_KEY => todo!("root ref item"),
+            BTRFS_ROOT_REF_KEY => {
+                let root_ref = unsafe {
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
+                        .as_ptr()
+                        .cast::<btrfs_root_ref>()
+                        .read_unaligned()
+                };
+
+                let name_offset = self.bp
+                    + mem::size_of::<btrfs_ioctl_search_header>()
+                    + mem::size_of::<btrfs_root_ref>();
+
+                let slice = unsafe {
+                    slice::from_raw_parts(
+                        self.args.buffer[name_offset..].as_ptr(),
+                        root_ref.name_len as usize,
+                    )
+                };
+
+                Item::RootRef(RootRef::from_c_struct(root_ref, slice))
+            }
             BTRFS_INODE_ITEM_KEY => todo!("inode item"),
             BTRFS_CHUNK_ITEM_KEY => todo!("chunk item"),
             BTRFS_DEV_ITEM_KEY => todo!("dev item"),
