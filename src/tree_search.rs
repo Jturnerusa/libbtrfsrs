@@ -69,9 +69,9 @@ pub enum Tree {
 }
 
 #[derive(Debug)]
-pub struct TreeSearch {
+pub struct TreeSearch<'a> {
     args: TreeSearchArgs,
-    file: File,
+    file: &'a File,
     bp: usize,
 }
 
@@ -110,9 +110,9 @@ impl TreeSearchArgs {
     }
 }
 
-impl TreeSearch {
+impl<'a> TreeSearch<'a> {
     pub fn new(
-        file: File,
+        file: &'a File,
         tree: Tree,
         objectids: Range<u64>,
         offsets: Range<u64>,
@@ -125,7 +125,7 @@ impl TreeSearch {
     }
 }
 
-impl Iterator for TreeSearch {
+impl<'a> Iterator for TreeSearch<'a> {
     type Item = Result<Item, nix::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
