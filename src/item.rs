@@ -12,71 +12,71 @@ use btrfs_sys::{
 use crate::{le, Compression};
 
 #[derive(Clone, Copy, Debug)]
-pub struct Uuid([u8; BTRFS_UUID_SIZE as usize]);
+pub struct Uuid(pub [u8; BTRFS_UUID_SIZE as usize]);
 
 #[derive(Clone, Copy, Debug)]
 pub struct Inode {
-    generation: le::U64,
-    transid: le::U64,
-    size: le::U64,
-    nbytes: le::U64,
-    block_group: le::U64,
-    nlink: le::U32,
-    uid: le::U32,
-    gid: le::U32,
-    mode: le::U32,
-    rdev: le::U64,
-    sequence: le::U64,
-    atime: time::Duration,
-    ctime: time::Duration,
-    mtime: time::Duration,
-    otime: time::Duration,
+    pub generation: le::U64,
+    pub transid: le::U64,
+    pub size: le::U64,
+    pub nbytes: le::U64,
+    pub block_group: le::U64,
+    pub nlink: le::U32,
+    pub uid: le::U32,
+    pub gid: le::U32,
+    pub mode: le::U32,
+    pub rdev: le::U64,
+    pub sequence: le::U64,
+    pub atime: time::Duration,
+    pub ctime: time::Duration,
+    pub mtime: time::Duration,
+    pub otime: time::Duration,
 }
 
 #[derive(Clone, Debug)]
 pub struct InodeRef {
-    index: le::U64,
-    name: PathBuf,
+    pub index: le::U64,
+    pub name: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct DiskKey {
-    objectid: le::U64,
-    r#type: u8,
-    offset: le::U64,
+    pub objectid: le::U64,
+    pub r#type: u8,
+    pub offset: le::U64,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Root {
-    inode: Inode,
-    generation: le::U64,
-    root_dirid: le::U64,
-    bytenr: le::U64,
-    byte_limit: le::U64,
-    bytes_used: le::U64,
-    last_snapshot: le::U64,
-    read_only: bool,
-    refs: bool,
-    btrfs_disk_key: DiskKey,
-    level: u8,
-    generation_v2: le::U64,
-    uuid: Uuid,
-    parent_uuid: Uuid,
-    received_uuid: Uuid,
-    ctransid: le::U64,
-    stransid: le::U64,
-    rtransid: le::U64,
-    ctime: time::Duration,
-    otime: time::Duration,
-    stime: time::Duration,
-    rtime: time::Duration,
+    pub inode: Inode,
+    pub generation: le::U64,
+    pub root_dirid: le::U64,
+    pub bytenr: le::U64,
+    pub byte_limit: le::U64,
+    pub bytes_used: le::U64,
+    pub last_snapshot: le::U64,
+    pub read_only: bool,
+    pub refs: bool,
+    pub btrfs_disk_key: DiskKey,
+    pub level: u8,
+    pub generation_v2: le::U64,
+    pub uuid: Uuid,
+    pub parent_uuid: Uuid,
+    pub received_uuid: Uuid,
+    pub ctransid: le::U64,
+    pub stransid: le::U64,
+    pub rtransid: le::U64,
+    pub ctime: time::Duration,
+    pub otime: time::Duration,
+    pub stime: time::Duration,
+    pub rtime: time::Duration,
 }
 
 #[derive(Clone, Debug)]
 pub struct RootRef {
-    dirid: le::U64,
-    sequence: le::U64,
-    name: PathBuf,
+    pub dirid: le::U64,
+    pub sequence: le::U64,
+    pub name: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -108,21 +108,21 @@ pub enum Dir {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FileExtentReg {
-    generation: le::U64,
-    ram_bytes: le::U64,
-    compression: Compression,
-    disk_bytenr: le::U64,
-    disk_num_bytes: le::U64,
-    offset: le::U64,
-    num_bytes: le::U64,
+    pub generation: le::U64,
+    pub ram_bytes: le::U64,
+    pub compression: Compression,
+    pub disk_bytenr: le::U64,
+    pub disk_num_bytes: le::U64,
+    pub offset: le::U64,
+    pub num_bytes: le::U64,
 }
 
 #[derive(Clone, Debug)]
 pub struct FileExtentInline {
-    generation: le::U64,
-    ram_bytes: le::U64,
-    compression: Compression,
-    data: Vec<u8>,
+    pub generation: le::U64,
+    pub ram_bytes: le::U64,
+    pub compression: Compression,
+    pub data: Vec<u8>,
 }
 
 impl Inode {
