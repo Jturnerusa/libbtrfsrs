@@ -1,9 +1,11 @@
-use crate::item::{Dir, FileExtentInline, FileExtentReg, Inode, InodeRef, Root, RootRef};
+use crate::item::{
+    Dir, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root, RootRef,
+};
 
 use btrfs_sys::{
-    btrfs_dir_item, btrfs_file_extent_item, btrfs_inode_item, btrfs_inode_ref,
-    btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header, btrfs_ioctl_search_key, btrfs_root_item,
-    btrfs_root_ref, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
+    btrfs_dir_item, btrfs_file_extent_item, btrfs_free_space_header, btrfs_inode_item,
+    btrfs_inode_ref, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
+    btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
     BTRFS_CHUNK_ITEM_KEY, BTRFS_CHUNK_TREE_OBJECTID, BTRFS_CSUM_TREE_OBJECTID,
     BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY,
     BTRFS_DEV_TREE_OBJECTID, BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY,
@@ -50,6 +52,7 @@ pub enum Item {
     Dir(Dir),
     Inode(Inode),
     InodeRef(InodeRef),
+    FreeSpaceHeader(FreeSpaceHeader),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -244,7 +247,16 @@ impl<'a> Iterator for TreeSearch<'a> {
             BTRFS_FREE_SPACE_INFO_KEY => todo!("free space info item"),
             BTRFS_FREE_SPACE_EXTENT_KEY => todo!("free space extent item"),
             BTRFS_FREE_SPACE_BITMAP_KEY => todo!("free space bitmap item"),
-            0 => todo!("free space header item"),
+            0 => {
+                let free_space_header = unsafe {
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
+                        .as_ptr()
+                        .cast::<btrfs_free_space_header>()
+                        .read_unaligned()
+                };
+
+                Item::FreeSpaceHeader(FreeSpaceHeader::from_c_struct(free_space_header))
+            }
             BTRFS_DIR_ITEM_KEY => {
                 let dir = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]

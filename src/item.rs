@@ -4,9 +4,10 @@ use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 use btrfs_sys::{
     btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
     btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
-    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_inode_item, btrfs_inode_ref,
-    btrfs_root_item, btrfs_root_ref, BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO,
-    BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
+    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_free_space_header,
+    btrfs_inode_item, btrfs_inode_ref, btrfs_root_item, btrfs_root_ref, BTRFS_FT_BLKDEV,
+    BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO, BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK,
+    BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
 };
 
 use crate::{le, Compression};
@@ -123,6 +124,14 @@ pub struct FileExtentInline {
     pub ram_bytes: le::U64,
     pub compression: Compression,
     pub data: Vec<u8>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FreeSpaceHeader {
+    pub location: DiskKey,
+    pub generation: le::U64,
+    pub num_entries: le::U64,
+    pub num_bitmaps: le::U64,
 }
 
 impl Inode {
@@ -279,6 +288,17 @@ impl FileExtentInline {
                 _ => unreachable!(),
             },
             data: data.to_vec(),
+        }
+    }
+}
+
+impl FreeSpaceHeader {
+    pub(crate) fn from_c_struct(free_space_header: btrfs_free_space_header) -> Self {
+        Self {
+            location: DiskKey::from_c_struct(free_space_header.location),
+            generation: le::U64::new(free_space_header.generation),
+            num_entries: le::U64::new(free_space_header.num_entries),
+            num_bitmaps: le::U64::new(free_space_header.num_bitmaps),
         }
     }
 }
