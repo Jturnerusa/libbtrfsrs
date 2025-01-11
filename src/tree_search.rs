@@ -257,7 +257,7 @@ impl<'a> Iterator for TreeSearch<'a> {
 
                 Item::FreeSpaceHeader(FreeSpaceHeader::from_c_struct(free_space_header))
             }
-            BTRFS_DIR_ITEM_KEY => {
+            BTRFS_DIR_ITEM_KEY | BTRFS_DIR_INDEX_KEY => {
                 let dir = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
