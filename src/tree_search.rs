@@ -21,7 +21,7 @@ use btrfs_sys::{
     BTRFS_UUID_KEY_SUBVOL, BTRFS_UUID_TREE_OBJECTID,
 };
 
-use core::{mem, slice};
+use core::{mem, slice, unreachable};
 use std::{fs::File, ops::Range, os::fd::AsRawFd};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
@@ -309,7 +309,7 @@ impl<'a> Iterator for TreeSearch<'a> {
             BTRFS_DIR_LOG_ITEM_KEY => todo!("dir log item"),
             BTRFS_TEMPORARY_ITEM_KEY => todo!("balance item"),
             BTRFS_UUID_KEY_SUBVOL | BTRFS_UUID_KEY_RECEIVED_SUBVOL => todo!("uuid item"),
-            _ => todo!("{}", header.type_),
+            _ => unreachable!(),
         };
 
         self.bp +=
