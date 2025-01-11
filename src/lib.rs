@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub mod info;
 pub mod item;
 pub mod le;
 pub mod tree_search;
