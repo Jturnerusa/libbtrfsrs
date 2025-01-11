@@ -278,7 +278,6 @@ impl<'a> Iterator for TreeSearch<'a> {
 
                 Item::Dir(Dir::from_c_struct(dir, slice))
             }
-            BTRFS_DIR_INDEX_KEY => todo!("dir index item"),
             BTRFS_INODE_REF_KEY => {
                 let inode_ref = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
