@@ -4,10 +4,11 @@ use std::{
     fs::{self, File},
     io,
     os::{fd::AsRawFd, unix::ffi::OsStrExt},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-use btrfs_sys::{btrfs_ioctl_get_subvol_info_args, BTRFS_IOCTL_MAGIC};
+use btrfs_sys::{btrfs_ioctl_get_subvol_info_args, BTRFS_FIRST_FREE_OBJECTID, BTRFS_IOCTL_MAGIC};
+use nix::libc::BTRFS_SUPER_MAGIC;
 
 use crate::item::Uuid;
 
@@ -77,4 +78,14 @@ pub fn subvol_info(file: &File) -> nix::Result<SubvolInfo> {
     unsafe { btrfs_get_subvol_info(file.as_raw_fd(), &mut args as *mut _)? };
 
     Ok(SubvolInfo::from_c_struct(args))
+}
+
+pub fn is_subvol(file: &File) -> nix::Result<bool> {
+    let statfs = nix::sys::statfs::fstatfs(file)?;
+    let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
+
+    Ok(statfs.filesystem_type().0 == BTRFS_SUPER_MAGIC
+        && stat.st_ino == BTRFS_FIRST_FREE_OBJECTID as u64
+        && stat.st_mode & nix::sys::stat::SFlag::S_IFMT.bits()
+            == nix::sys::stat::SFlag::S_IFDIR.bits())
 }
