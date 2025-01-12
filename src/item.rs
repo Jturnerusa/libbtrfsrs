@@ -92,7 +92,23 @@ pub enum FileType {
 }
 
 #[derive(Clone, Debug)]
-pub enum Dir {
+pub enum DirItem {
+    Xattr {
+        location: DiskKey,
+        transid: le::U64,
+        name: Vec<u8>,
+        value: Vec<u8>,
+    },
+    File {
+        location: DiskKey,
+        transid: le::U64,
+        name: PathBuf,
+        r#type: FileType,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub enum DirIndex {
     Xattr {
         location: DiskKey,
         transid: le::U64,
@@ -226,7 +242,34 @@ impl RootRef {
     }
 }
 
-impl Dir {
+impl DirItem {
+    pub(crate) fn from_c_struct(dir: btrfs_dir_item, data: &[u8]) -> Self {
+        match dir.type_ as u32 {
+            BTRFS_FT_XATTR => Self::Xattr {
+                location: DiskKey::from_c_struct(dir.location),
+                transid: le::U64::new(dir.transid),
+                name: data[..dir.name_len as usize].to_vec(),
+                value: data[dir.data_len as usize..].to_vec(),
+            },
+            _ => Self::File {
+                location: DiskKey::from_c_struct(dir.location),
+                transid: le::U64::new(dir.transid),
+                r#type: match dir.type_ as u32 {
+                    BTRFS_FT_REG_FILE => FileType::Reg,
+                    BTRFS_FT_DIR => FileType::Dir,
+                    BTRFS_FT_CHRDEV => FileType::ChrDev,
+                    BTRFS_FT_BLKDEV => FileType::BlkDev,
+                    BTRFS_FT_FIFO => FileType::Fifo,
+                    BTRFS_FT_SYMLINK => FileType::Sym,
+                    _ => unreachable!(),
+                },
+                name: PathBuf::from(<OsStr as OsStrExt>::from_bytes(data)),
+            },
+        }
+    }
+}
+
+impl DirIndex {
     pub(crate) fn from_c_struct(dir: btrfs_dir_item, data: &[u8]) -> Self {
         match dir.type_ as u32 {
             BTRFS_FT_XATTR => Self::Xattr {

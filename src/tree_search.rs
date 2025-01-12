@@ -1,5 +1,6 @@
 use crate::item::{
-    Dir, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root, RootRef,
+    DirIndex, DirItem, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root,
+    RootRef,
 };
 
 use btrfs_sys::{
@@ -49,7 +50,8 @@ pub enum Item {
     RootRef(RootRef),
     FileExtentReg(FileExtentReg),
     FileExtentInline(FileExtentInline),
-    Dir(Dir),
+    DirItem(DirItem),
+    DirIndex(DirIndex),
     Inode(Inode),
     InodeRef(InodeRef),
     FreeSpaceHeader(FreeSpaceHeader),
@@ -276,7 +278,11 @@ impl<'a> Iterator for TreeSearch<'a> {
                     )
                 };
 
-                Item::Dir(Dir::from_c_struct(dir, slice))
+                match header.type_ {
+                    BTRFS_DIR_ITEM_KEY => Item::DirItem(DirItem::from_c_struct(dir, slice)),
+                    BTRFS_DIR_INDEX_KEY => Item::DirIndex(DirIndex::from_c_struct(dir, slice)),
+                    _ => unreachable!(),
+                }
             }
             BTRFS_INODE_REF_KEY => {
                 let inode_ref = unsafe {
