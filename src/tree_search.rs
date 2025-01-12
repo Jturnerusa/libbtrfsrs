@@ -193,7 +193,7 @@ impl<'a> Iterator for TreeSearch<'a> {
             }
             BTRFS_INODE_ITEM_KEY => {
                 let inode = unsafe {
-                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_args_v2>()..]
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
                         .cast::<btrfs_inode_item>()
                         .read_unaligned()
@@ -313,9 +313,8 @@ impl<'a> Iterator for TreeSearch<'a> {
 
         self.bp +=
             mem::size_of::<btrfs_ioctl_search_header>() + usize::try_from(header.len).unwrap();
-
+        self.args.key.min_offset = header.offset + 1;
         self.args.key.nr_items -= 1;
-        self.args.key.min_offset += 1;
 
         Some(Ok(item))
     }
