@@ -319,7 +319,9 @@ impl Iterator for TreeSearch<'_> {
 
         self.bp +=
             mem::size_of::<btrfs_ioctl_search_header>() + usize::try_from(header.len).unwrap();
+        self.args.key.min_objectid = header.objectid + 1;
         self.args.key.min_offset = header.offset + 1;
+        self.args.key.min_type = header.type_ + 1;
         self.args.key.nr_items -= 1;
 
         Some(Ok(item))
