@@ -1,6 +1,9 @@
-use crate::item::{
-    DirIndex, DirItem, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root,
-    RootRef,
+use crate::{
+    item::{
+        DirIndex, DirItem, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root,
+        RootRef,
+    },
+    Subvolume,
 };
 
 use btrfs_sys::{
@@ -23,7 +26,7 @@ use btrfs_sys::{
 };
 
 use core::{mem, slice, unreachable};
-use std::{fs::File, ops::Range, os::fd::AsRawFd};
+use std::{ops::Range, os::fd::AsRawFd};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
 
@@ -76,7 +79,7 @@ pub enum Tree {
 #[derive(Debug)]
 pub struct TreeSearch<'a> {
     args: TreeSearchArgs,
-    file: &'a File,
+    subvol: Subvolume<'a>,
     bp: usize,
 }
 
@@ -117,7 +120,7 @@ impl TreeSearchArgs {
 
 impl<'a> TreeSearch<'a> {
     pub fn new(
-        file: &'a File,
+        subvol: Subvolume<'a>,
         tree: Tree,
         objectids: Range<u64>,
         offsets: Range<u64>,
@@ -126,7 +129,11 @@ impl<'a> TreeSearch<'a> {
     ) -> Self {
         let args = TreeSearchArgs::new(tree as u64, objectids, offsets, transids, types, 0);
 
-        Self { args, file, bp: 0 }
+        Self {
+            args,
+            subvol,
+            bp: 0,
+        }
     }
 }
 
@@ -140,7 +147,7 @@ impl Iterator for TreeSearch<'_> {
 
             match unsafe {
                 btrfs_tree_search(
-                    self.file.as_raw_fd(),
+                    self.subvol.as_file().as_raw_fd(),
                     (&mut self.args as *mut TreeSearchArgs).cast::<btrfs_ioctl_search_args_v2>(),
                 )
             } {
