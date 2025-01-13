@@ -8,7 +8,7 @@ pub mod tree_search;
 pub use btrfs_sys;
 pub use tree_search::TreeSearch;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Compression {
     None,
     Zlib,

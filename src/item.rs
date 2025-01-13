@@ -12,10 +12,10 @@ use btrfs_sys::{
 
 use crate::{le, Compression};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Uuid(pub [u8; BTRFS_UUID_SIZE as usize]);
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Inode {
     pub generation: le::U64,
     pub transid: le::U64,
@@ -34,20 +34,20 @@ pub struct Inode {
     pub otime: time::Duration,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InodeRef {
     pub index: le::U64,
     pub name: PathBuf,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DiskKey {
     pub objectid: le::U64,
     pub r#type: u8,
     pub offset: le::U64,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Root {
     pub inode: Inode,
     pub generation: le::U64,
@@ -73,14 +73,14 @@ pub struct Root {
     pub rtime: time::Duration,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RootRef {
     pub dirid: le::U64,
     pub sequence: le::U64,
     pub name: PathBuf,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FileType {
     Reg,
     Dir,
@@ -91,7 +91,7 @@ pub enum FileType {
     Sym,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DirItem {
     Xattr {
         location: DiskKey,
@@ -107,7 +107,7 @@ pub enum DirItem {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DirIndex {
     Xattr {
         location: DiskKey,
@@ -123,7 +123,7 @@ pub enum DirIndex {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileExtentReg {
     pub generation: le::U64,
     pub ram_bytes: le::U64,
@@ -134,7 +134,7 @@ pub struct FileExtentReg {
     pub num_bytes: le::U64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileExtentInline {
     pub generation: le::U64,
     pub ram_bytes: le::U64,
@@ -142,7 +142,7 @@ pub struct FileExtentInline {
     pub data: Vec<u8>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FreeSpaceHeader {
     pub location: DiskKey,
     pub generation: le::U64,
