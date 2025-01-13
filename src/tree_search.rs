@@ -130,7 +130,7 @@ impl<'a> TreeSearch<'a> {
     }
 }
 
-impl<'a> Iterator for TreeSearch<'a> {
+impl Iterator for TreeSearch<'_> {
     type Item = Result<Item, nix::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
