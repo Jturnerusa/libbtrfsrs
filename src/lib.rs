@@ -58,6 +58,7 @@ pub struct SubvolInfo {
     rtime: time::Duration,
 }
 
+#[derive(Clone, Debug)]
 pub struct Subvolume<'a>(&'a File);
 
 impl<'a> Subvolume<'a> {
@@ -75,6 +76,10 @@ impl<'a> Subvolume<'a> {
         unsafe { btrfs_get_subvol_info(self.0.as_raw_fd(), &mut args as *mut _)? };
 
         Ok(SubvolInfo::from_c_struct(args))
+    }
+
+    pub fn as_file(&self) -> &File {
+        self.0
     }
 }
 
