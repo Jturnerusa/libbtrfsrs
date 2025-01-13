@@ -1,4 +1,5 @@
-use core::{convert::From, unreachable};
+use crate::Uuid;
+use core::convert::From;
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 
 use btrfs_sys::{
@@ -7,13 +8,10 @@ use btrfs_sys::{
     btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_free_space_header,
     btrfs_inode_item, btrfs_inode_ref, btrfs_root_item, btrfs_root_ref, BTRFS_FT_BLKDEV,
     BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO, BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK,
-    BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
+    BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY,
 };
 
 use crate::{le, Compression};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Uuid(pub [u8; BTRFS_UUID_SIZE as usize]);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Inode {
