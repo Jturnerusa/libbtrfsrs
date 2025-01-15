@@ -118,9 +118,9 @@ pub enum KeyType {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Key {
-    objectid: u64,
-    r#type: KeyType,
-    offset: u64,
+    pub objectid: u64,
+    pub r#type: KeyType,
+    pub offset: u64,
 }
 
 #[derive(Debug)]
