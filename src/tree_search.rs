@@ -125,7 +125,7 @@ pub enum KeyType {
 #[derive(Clone, Copy, Debug)]
 pub struct Key {
     objectid: u64,
-    rtype: KeyType,
+    r#type: KeyType,
     offset: u64,
 }
 
@@ -294,7 +294,7 @@ impl Iterator for TreeSearch<'_> {
 
         let key = Key {
             objectid: header.objectid,
-            rtype: KeyType::try_from(header.type_).unwrap(),
+            r#type: KeyType::try_from(header.type_).unwrap(),
             offset: header.offset,
         };
 
