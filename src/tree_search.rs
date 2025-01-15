@@ -25,7 +25,7 @@ use btrfs_sys::{
     BTRFS_UUID_KEY_SUBVOL, BTRFS_UUID_TREE_OBJECTID,
 };
 
-use core::{mem, slice, unreachable};
+use core::{convert::TryFrom, mem, slice, unreachable};
 use std::{ops::Range, os::fd::AsRawFd};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
@@ -77,11 +77,114 @@ pub enum Tree {
     Subvol(u64),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum KeyType {
+    BtrfsInodeItemKey = 1,
+    BtrfsInodeRefKey = 12,
+    BtrfsInodeExtrefKey = 13,
+    BtrfsXattrItemKey = 24,
+    BtrfsVerityDescItemKey = 36,
+    BtrfsVerityMerkleItemKey = 37,
+    BtrfsOrphanItemKey = 48,
+    BtrfsDirLogItemKey = 60,
+    BtrfsDirLogIndexKey = 72,
+    BtrfsDirItemKey = 84,
+    BtrfsDirIndexKey = 96,
+    BtrfsExtentDataKey = 108,
+    BtrfsCsumItemKey = 120,
+    BtrfsExtentCsumKey = 128,
+    BtrfsRootItemKey = 132,
+    BtrfsRootBackrefKey = 144,
+    BtrfsRootRefKey = 156,
+    BtrfsExtentItemKey = 168,
+    BtrfsMetadataItemKey = 169,
+    BtrfsTreeBlockRefKey = 176,
+    BtrfsExtentDataRefKey = 178,
+    BtrfsExtentRefV0Key = 180,
+    BtrfsSharedBlockRefKey = 182,
+    BtrfsSharedDataRefKey = 184,
+    BtrfsBlockGroupItemKey = 192,
+    BtrfsFreeSpaceInfoKey = 198,
+    BtrfsFreeSpaceExtentKey = 199,
+    BtrfsFreeSpaceBitmapKey = 200,
+    BtrfsDevExtentKey = 204,
+    BtrfsDevItemKey = 216,
+    BtrfsChunkItemKey = 228,
+    BtrfsQgroupStatusKey = 240,
+    BtrfsQgroupInfoKey = 242,
+    BtrfsQgroupLimitKey = 244,
+    BtrfsQgroupRelationKey = 246,
+    BtrfsTemporaryItemKey = 248,
+    BtrfsPersistentItemKey = 249,
+    BtrfsDevReplaceKey = 250,
+    BtrfsUuidKeySubvol = 251,
+    BtrfsUuidKeyReceivedSubvol = 252,
+    BtrfsStringItemKey = 253,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Key {
+    objectid: u64,
+    rtype: KeyType,
+    offset: u64,
+}
+
 #[derive(Debug)]
 pub struct TreeSearch<'a> {
     args: TreeSearchArgs,
     subvol: Subvolume<'a>,
     bp: usize,
+}
+
+impl TryFrom<u32> for KeyType {
+    type Error = ();
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        Ok(match value {
+            1 => Self::BtrfsInodeItemKey,
+            12 => Self::BtrfsInodeRefKey,
+            13 => Self::BtrfsInodeExtrefKey,
+            24 => Self::BtrfsXattrItemKey,
+            36 => Self::BtrfsVerityDescItemKey,
+            37 => Self::BtrfsVerityMerkleItemKey,
+            48 => Self::BtrfsOrphanItemKey,
+            60 => Self::BtrfsDirLogItemKey,
+            72 => Self::BtrfsDirLogIndexKey,
+            84 => Self::BtrfsDirItemKey,
+            96 => Self::BtrfsDirIndexKey,
+            108 => Self::BtrfsExtentDataKey,
+            120 => Self::BtrfsCsumItemKey,
+            128 => Self::BtrfsExtentCsumKey,
+            132 => Self::BtrfsRootItemKey,
+            144 => Self::BtrfsRootBackrefKey,
+            156 => Self::BtrfsRootRefKey,
+            168 => Self::BtrfsExtentItemKey,
+            169 => Self::BtrfsMetadataItemKey,
+            176 => Self::BtrfsTreeBlockRefKey,
+            178 => Self::BtrfsExtentDataRefKey,
+            180 => Self::BtrfsExtentRefV0Key,
+            182 => Self::BtrfsSharedBlockRefKey,
+            184 => Self::BtrfsSharedDataRefKey,
+            192 => Self::BtrfsBlockGroupItemKey,
+            198 => Self::BtrfsFreeSpaceInfoKey,
+            199 => Self::BtrfsFreeSpaceExtentKey,
+            200 => Self::BtrfsFreeSpaceBitmapKey,
+            204 => Self::BtrfsDevExtentKey,
+            216 => Self::BtrfsDevItemKey,
+            228 => Self::BtrfsChunkItemKey,
+            240 => Self::BtrfsQgroupStatusKey,
+            242 => Self::BtrfsQgroupInfoKey,
+            244 => Self::BtrfsQgroupLimitKey,
+            246 => Self::BtrfsQgroupRelationKey,
+            248 => Self::BtrfsTemporaryItemKey,
+            249 => Self::BtrfsPersistentItemKey,
+            250 => Self::BtrfsDevReplaceKey,
+            251 => Self::BtrfsUuidKeySubvol,
+            252 => Self::BtrfsUuidKeyReceivedSubvol,
+            253 => Self::BtrfsStringItemKey,
+            _ => return Err(()),
+        })
+    }
 }
 
 impl Tree {
@@ -159,7 +262,7 @@ impl<'a> TreeSearch<'a> {
 }
 
 impl Iterator for TreeSearch<'_> {
-    type Item = Result<Item, nix::Error>;
+    type Item = Result<(Key, Item), nix::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.args.key.nr_items == 0 {
@@ -187,6 +290,12 @@ impl Iterator for TreeSearch<'_> {
                 .as_ptr()
                 .cast::<btrfs_ioctl_search_header>()
                 .read_unaligned()
+        };
+
+        let key = Key {
+            objectid: header.objectid,
+            rtype: KeyType::try_from(header.type_).unwrap(),
+            offset: header.offset,
         };
 
         let item = match header.type_ {
@@ -352,6 +461,6 @@ impl Iterator for TreeSearch<'_> {
         self.args.key.min_type = header.type_ + 1;
         self.args.key.nr_items -= 1;
 
-        Some(Ok(item))
+        Some(Ok((key, item)))
     }
 }
