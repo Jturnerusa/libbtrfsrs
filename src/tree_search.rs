@@ -9,20 +9,12 @@ use crate::{
 use btrfs_sys::{
     btrfs_dir_item, btrfs_file_extent_item, btrfs_free_space_header, btrfs_inode_item,
     btrfs_inode_ref, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
-    btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_ITEM_KEY, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
-    BTRFS_CHUNK_ITEM_KEY, BTRFS_CHUNK_TREE_OBJECTID, BTRFS_CSUM_TREE_OBJECTID,
-    BTRFS_DEV_EXTENT_KEY, BTRFS_DEV_ITEM_KEY, BTRFS_DEV_REPLACE_KEY, BTRFS_DEV_STATS_KEY,
-    BTRFS_DEV_TREE_OBJECTID, BTRFS_DIR_INDEX_KEY, BTRFS_DIR_ITEM_KEY, BTRFS_DIR_LOG_ITEM_KEY,
-    BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY, BTRFS_EXTENT_ITEM_KEY,
-    BTRFS_EXTENT_TREE_OBJECTID, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
-    BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY, BTRFS_FREE_SPACE_EXTENT_KEY,
-    BTRFS_FREE_SPACE_INFO_KEY, BTRFS_FREE_SPACE_TREE_OBJECTID, BTRFS_FS_TREE_OBJECTID,
-    BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY, BTRFS_IOCTL_MAGIC,
-    BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY, BTRFS_QGROUP_LIMIT_KEY,
-    BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY, BTRFS_QUOTA_TREE_OBJECTID,
-    BTRFS_ROOT_ITEM_KEY, BTRFS_ROOT_REF_KEY, BTRFS_ROOT_TREE_DIR_OBJECTID,
-    BTRFS_ROOT_TREE_OBJECTID, BTRFS_TEMPORARY_ITEM_KEY, BTRFS_UUID_KEY_RECEIVED_SUBVOL,
-    BTRFS_UUID_KEY_SUBVOL, BTRFS_UUID_TREE_OBJECTID,
+    btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_TREE_OBJECTID, BTRFS_CHUNK_TREE_OBJECTID,
+    BTRFS_CSUM_TREE_OBJECTID, BTRFS_DEV_TREE_OBJECTID, BTRFS_EXTENT_TREE_OBJECTID,
+    BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG,
+    BTRFS_FREE_SPACE_TREE_OBJECTID, BTRFS_FS_TREE_OBJECTID, BTRFS_IOCTL_MAGIC,
+    BTRFS_QUOTA_TREE_OBJECTID, BTRFS_ROOT_TREE_DIR_OBJECTID, BTRFS_ROOT_TREE_OBJECTID,
+    BTRFS_UUID_TREE_OBJECTID,
 };
 
 use core::{convert::TryFrom, mem, slice, unreachable};
@@ -51,6 +43,7 @@ pub struct TreeSearchArgs {
 pub enum Item {
     Root(Root),
     RootRef(RootRef),
+    RootBackRef(RootRef),
     FileExtentReg(FileExtentReg),
     FileExtentInline(FileExtentInline),
     DirItem(DirItem),
@@ -79,6 +72,7 @@ pub enum Tree {
 
 #[derive(Clone, Copy, Debug)]
 pub enum KeyType {
+    FreeSpaceHeader = 0,
     InodeItem = 1,
     InodeRef = 12,
     InodeExtref = 13,
@@ -141,6 +135,7 @@ impl TryFrom<u32> for KeyType {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         Ok(match value {
+            0 => Self::FreeSpaceHeader,
             1 => Self::InodeItem,
             12 => Self::InodeRef,
             13 => Self::InodeExtref,
@@ -298,8 +293,8 @@ impl Iterator for TreeSearch<'_> {
             offset: header.offset,
         };
 
-        let item = match header.type_ {
-            BTRFS_ROOT_ITEM_KEY => {
+        let item = match key.r#type {
+            KeyType::RootItem => {
                 let root = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -309,7 +304,7 @@ impl Iterator for TreeSearch<'_> {
 
                 Item::Root(Root::from_c_struct(root))
             }
-            BTRFS_ROOT_REF_KEY => {
+            KeyType::RootRef | KeyType::RootBackref => {
                 let root_ref = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -328,9 +323,15 @@ impl Iterator for TreeSearch<'_> {
                     )
                 };
 
-                Item::RootRef(RootRef::from_c_struct(root_ref, slice))
+                match key.r#type {
+                    KeyType::RootRef => Item::RootRef(RootRef::from_c_struct(root_ref, slice)),
+                    KeyType::RootBackref => {
+                        Item::RootBackRef(RootRef::from_c_struct(root_ref, slice))
+                    }
+                    _ => unreachable!(),
+                }
             }
-            BTRFS_INODE_ITEM_KEY => {
+            KeyType::InodeItem => {
                 let inode = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -340,13 +341,13 @@ impl Iterator for TreeSearch<'_> {
 
                 Item::Inode(Inode::from_c_struct(inode))
             }
-            BTRFS_CHUNK_ITEM_KEY => todo!("chunk item"),
-            BTRFS_DEV_ITEM_KEY => todo!("dev item"),
-            BTRFS_DEV_EXTENT_KEY => todo!("dev extent item"),
-            BTRFS_DEV_STATS_KEY => todo!("dev stats item"),
-            BTRFS_DEV_REPLACE_KEY => todo!("dev replace item"),
-            BTRFS_BLOCK_GROUP_ITEM_KEY => todo!("block group item"),
-            BTRFS_EXTENT_DATA_KEY => {
+            KeyType::ChunkItem => todo!("chunk item"),
+            KeyType::DevItem => todo!("dev item"),
+            KeyType::DevExtent => todo!("dev extent item"),
+            KeyType::PersistentItem => todo!("persistence item"),
+            KeyType::DevReplace => todo!("dev replace item"),
+            KeyType::BlockGroupItem => todo!("block group item"),
+            KeyType::ExtentData => {
                 let file_extent = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -380,13 +381,13 @@ impl Iterator for TreeSearch<'_> {
                     _ => unreachable!(),
                 }
             }
-            BTRFS_EXTENT_ITEM_KEY => todo!("extent item"),
-            BTRFS_METADATA_ITEM_KEY => todo!("metadata item"),
-            BTRFS_EXTENT_CSUM_KEY => todo!("checksum item"),
-            BTRFS_FREE_SPACE_INFO_KEY => todo!("free space info item"),
-            BTRFS_FREE_SPACE_EXTENT_KEY => todo!("free space extent item"),
-            BTRFS_FREE_SPACE_BITMAP_KEY => todo!("free space bitmap item"),
-            0 => {
+            KeyType::ExtentItem => todo!("extent item"),
+            KeyType::MetadataItem => todo!("metadata item"),
+            KeyType::CsumItem => todo!("checksum item"),
+            KeyType::FreeSpaceInfo => todo!("free space info item"),
+            KeyType::FreeSpaceExtent => todo!("free space extent item"),
+            KeyType::FreeSpaceBitmap => todo!("free space bitmap item"),
+            KeyType::FreeSpaceHeader => {
                 let free_space_header = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -396,7 +397,7 @@ impl Iterator for TreeSearch<'_> {
 
                 Item::FreeSpaceHeader(FreeSpaceHeader::from_c_struct(free_space_header))
             }
-            BTRFS_DIR_ITEM_KEY | BTRFS_DIR_INDEX_KEY => {
+            KeyType::DirItem | KeyType::DirIndex | KeyType::XattrItem => {
                 let dir = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -415,13 +416,13 @@ impl Iterator for TreeSearch<'_> {
                     )
                 };
 
-                match header.type_ {
-                    BTRFS_DIR_ITEM_KEY => Item::DirItem(DirItem::from_c_struct(dir, slice)),
-                    BTRFS_DIR_INDEX_KEY => Item::DirIndex(DirIndex::from_c_struct(dir, slice)),
+                match key.r#type {
+                    KeyType::DirItem => Item::DirItem(DirItem::from_c_struct(dir, slice)),
+                    KeyType::DirIndex => Item::DirIndex(DirIndex::from_c_struct(dir, slice)),
                     _ => unreachable!(),
                 }
             }
-            BTRFS_INODE_REF_KEY => {
+            KeyType::InodeRef => {
                 let inode_ref = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
                         .as_ptr()
@@ -442,16 +443,16 @@ impl Iterator for TreeSearch<'_> {
 
                 Item::InodeRef(InodeRef::from_c_struct(inode_ref, slice))
             }
-            BTRFS_INODE_EXTREF_KEY => todo!("inode extref item"),
-            BTRFS_QGROUP_STATUS_KEY => todo!("qgroup status item"),
-            BTRFS_QGROUP_INFO_KEY => todo!("qgroup info item"),
-            BTRFS_QGROUP_LIMIT_KEY => todo!("qgroup limit item"),
-            BTRFS_QGROUP_RELATION_KEY => todo!("qgroup relation item"),
-            BTRFS_ORPHAN_ITEM_KEY => todo!("orphan item"),
-            BTRFS_DIR_LOG_ITEM_KEY => todo!("dir log item"),
-            BTRFS_TEMPORARY_ITEM_KEY => todo!("balance item"),
-            BTRFS_UUID_KEY_SUBVOL | BTRFS_UUID_KEY_RECEIVED_SUBVOL => todo!("uuid item"),
-            _ => unreachable!(),
+            KeyType::InodeExtref => todo!("inode extref item"),
+            KeyType::QgroupStatus => todo!("qgroup status item"),
+            KeyType::QgroupInfo => todo!("qgroup info item"),
+            KeyType::QgroupLimit => todo!("qgroup limit item"),
+            KeyType::QgroupRelation => todo!("qgroup relation item"),
+            KeyType::OrphanItem => todo!("orphan item"),
+            KeyType::DirLogItem => todo!("dir log item"),
+            KeyType::TemporaryItem => todo!("balance item"),
+            KeyType::UuidSubvol | KeyType::UuidReceivedSubvol => todo!("uuid item"),
+            _ => todo!("{:?}", key.r#type),
         };
 
         self.bp +=
