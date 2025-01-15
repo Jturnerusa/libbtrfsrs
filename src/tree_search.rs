@@ -16,7 +16,7 @@ use btrfs_sys::{
     BTRFS_EXTENT_CSUM_KEY, BTRFS_EXTENT_DATA_KEY, BTRFS_EXTENT_ITEM_KEY,
     BTRFS_EXTENT_TREE_OBJECTID, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
     BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_BITMAP_KEY, BTRFS_FREE_SPACE_EXTENT_KEY,
-    BTRFS_FREE_SPACE_INFO_KEY, BTRFS_FREE_SPACE_OBJECTID, BTRFS_FS_TREE_OBJECTID,
+    BTRFS_FREE_SPACE_INFO_KEY, BTRFS_FREE_SPACE_TREE_OBJECTID, BTRFS_FS_TREE_OBJECTID,
     BTRFS_INODE_EXTREF_KEY, BTRFS_INODE_ITEM_KEY, BTRFS_INODE_REF_KEY, BTRFS_IOCTL_MAGIC,
     BTRFS_METADATA_ITEM_KEY, BTRFS_ORPHAN_ITEM_KEY, BTRFS_QGROUP_INFO_KEY, BTRFS_QGROUP_LIMIT_KEY,
     BTRFS_QGROUP_RELATION_KEY, BTRFS_QGROUP_STATUS_KEY, BTRFS_QUOTA_TREE_OBJECTID,
@@ -62,18 +62,19 @@ pub enum Item {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Tree {
-    Auto = 0,
-    Root = BTRFS_ROOT_TREE_OBJECTID as isize,
-    Extent = BTRFS_EXTENT_TREE_OBJECTID as isize,
-    Chunk = BTRFS_CHUNK_TREE_OBJECTID as isize,
-    Dev = BTRFS_DEV_TREE_OBJECTID as isize,
-    Fs = BTRFS_FS_TREE_OBJECTID as isize,
-    Dir = BTRFS_ROOT_TREE_DIR_OBJECTID as isize,
-    Csum = BTRFS_CSUM_TREE_OBJECTID as isize,
-    Quota = BTRFS_QUOTA_TREE_OBJECTID as isize,
-    Uuid = BTRFS_UUID_TREE_OBJECTID as isize,
-    FreeSpace = BTRFS_FREE_SPACE_OBJECTID as isize,
-    BlockGroup = BTRFS_BLOCK_GROUP_TREE_OBJECTID as isize,
+    Auto,
+    Root,
+    Extent,
+    Chunk,
+    Dev,
+    Fs,
+    Dir,
+    Csum,
+    Quota,
+    Uuid,
+    FreeSpace,
+    BlockGroup,
+    Subvol(u64),
 }
 
 #[derive(Debug)]
@@ -81,6 +82,26 @@ pub struct TreeSearch<'a> {
     args: TreeSearchArgs,
     subvol: Subvolume<'a>,
     bp: usize,
+}
+
+impl Tree {
+    pub fn into_u64(self) -> u64 {
+        match self {
+            Self::Auto => 0,
+            Self::Root => BTRFS_ROOT_TREE_OBJECTID as u64,
+            Self::Extent => BTRFS_EXTENT_TREE_OBJECTID as u64,
+            Self::Fs => BTRFS_FS_TREE_OBJECTID as u64,
+            Self::Chunk => BTRFS_CHUNK_TREE_OBJECTID as u64,
+            Self::Dev => BTRFS_DEV_TREE_OBJECTID as u64,
+            Self::Dir => BTRFS_ROOT_TREE_DIR_OBJECTID as u64,
+            Self::Csum => BTRFS_CSUM_TREE_OBJECTID as u64,
+            Self::Quota => BTRFS_QUOTA_TREE_OBJECTID as u64,
+            Self::Uuid => BTRFS_UUID_TREE_OBJECTID as u64,
+            Self::FreeSpace => BTRFS_FREE_SPACE_TREE_OBJECTID as u64,
+            Self::BlockGroup => BTRFS_BLOCK_GROUP_TREE_OBJECTID as u64,
+            Self::Subvol(i) => i,
+        }
+    }
 }
 
 impl TreeSearchArgs {
@@ -127,7 +148,7 @@ impl<'a> TreeSearch<'a> {
         transids: Range<u64>,
         types: Range<u32>,
     ) -> Self {
-        let args = TreeSearchArgs::new(tree as u64, objectids, offsets, transids, types, 0);
+        let args = TreeSearchArgs::new(tree.into_u64(), objectids, offsets, transids, types, 0);
 
         Self {
             args,
