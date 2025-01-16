@@ -416,12 +416,14 @@ impl Iterator for TreeSearch<'_> {
                 let slice = unsafe {
                     slice::from_raw_parts(
                         self.args.buffer[name_offset..].as_ptr(),
-                        dir.name_len as usize,
+                        dir.name_len as usize + dir.data_len as usize,
                     )
                 };
 
                 match key.r#type {
-                    KeyType::DirItem => Item::DirItem(DirItem::from_c_struct(dir, slice)),
+                    KeyType::DirItem | KeyType::XattrItem => {
+                        Item::DirItem(DirItem::from_c_struct(dir, slice))
+                    }
                     KeyType::DirIndex => Item::DirIndex(DirIndex::from_c_struct(dir, slice)),
                     _ => unreachable!(),
                 }
