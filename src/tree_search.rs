@@ -235,6 +235,17 @@ impl TreeSearchArgs {
 }
 
 impl<'a> TreeSearch<'a> {
+    pub fn search_all(file: &'a File, tree: Tree) -> Self {
+        Self::new(
+            file,
+            tree,
+            0..u64::MAX,
+            0..u64::MAX,
+            0..u64::MAX,
+            0..u32::MAX,
+        )
+    }
+
     pub fn new(
         file: &'a File,
         tree: Tree,
