@@ -14,10 +14,9 @@ use btrfs_sys::{
     BTRFS_UUID_TREE_OBJECTID,
 };
 
+use crate::IOCTL_BUFF_SIZE;
 use core::{convert::TryFrom, mem, slice, unreachable};
 use std::{fs::File, ops::Range, os::fd::AsRawFd};
-
-const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
 
 nix::ioctl_readwrite!(
     btrfs_tree_search,

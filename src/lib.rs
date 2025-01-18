@@ -2,6 +2,7 @@
 
 pub mod item;
 pub mod le;
+pub mod logical_ino;
 pub mod tree_search;
 
 use core::{ffi::CStr, mem, time};
@@ -16,8 +17,11 @@ pub use btrfs_sys;
 use btrfs_sys::{
     btrfs_ioctl_get_subvol_info_args, BTRFS_FIRST_FREE_OBJECTID, BTRFS_IOCTL_MAGIC, BTRFS_UUID_SIZE,
 };
+pub use logical_ino::LogicalIno;
 use nix::libc::BTRFS_SUPER_MAGIC;
 pub use tree_search::TreeSearch;
+
+const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
 
 nix::ioctl_read!(
     btrfs_get_subvol_info,
