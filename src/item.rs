@@ -1,14 +1,18 @@
 use crate::Uuid;
-use core::convert::From;
+use core::convert::{From, TryFrom};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 
+use bitflags::{bitflags, Flags};
 use btrfs_sys::{
-    btrfs_compression_type_BTRFS_COMPRESS_LZO, btrfs_compression_type_BTRFS_COMPRESS_NONE,
-    btrfs_compression_type_BTRFS_COMPRESS_ZLIB, btrfs_compression_type_BTRFS_COMPRESS_ZSTD,
-    btrfs_dir_item, btrfs_disk_key, btrfs_file_extent_item, btrfs_free_space_header,
-    btrfs_inode_item, btrfs_inode_ref, btrfs_root_item, btrfs_root_ref, BTRFS_FT_BLKDEV,
-    BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO, BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK,
-    BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY,
+    btrfs_block_group_item, btrfs_compression_type_BTRFS_COMPRESS_LZO,
+    btrfs_compression_type_BTRFS_COMPRESS_NONE, btrfs_compression_type_BTRFS_COMPRESS_ZLIB,
+    btrfs_compression_type_BTRFS_COMPRESS_ZSTD, btrfs_dir_item, btrfs_disk_key,
+    btrfs_file_extent_item, btrfs_free_space_header, btrfs_inode_item, btrfs_inode_ref,
+    btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_DATA, BTRFS_BLOCK_GROUP_DUP,
+    BTRFS_BLOCK_GROUP_METADATA, BTRFS_BLOCK_GROUP_RAID0, BTRFS_BLOCK_GROUP_RAID1,
+    BTRFS_BLOCK_GROUP_RAID10, BTRFS_BLOCK_GROUP_RAID5, BTRFS_BLOCK_GROUP_RAID6,
+    BTRFS_BLOCK_GROUP_SYSTEM, BTRFS_FT_BLKDEV, BTRFS_FT_CHRDEV, BTRFS_FT_DIR, BTRFS_FT_FIFO,
+    BTRFS_FT_REG_FILE, BTRFS_FT_SYMLINK, BTRFS_FT_XATTR, BTRFS_ROOT_SUBVOL_RDONLY,
 };
 
 use crate::{le, Compression};
@@ -146,6 +150,40 @@ pub struct FreeSpaceHeader {
     pub generation: le::U64,
     pub num_entries: le::U64,
     pub num_bitmaps: le::U64,
+}
+
+bitflags! {
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct BlockGroupFlag: u64 {
+        const DATA = BTRFS_BLOCK_GROUP_DATA as u64;
+        const SYSTEM = BTRFS_BLOCK_GROUP_SYSTEM as u64;
+        const METADATA = BTRFS_BLOCK_GROUP_METADATA as u64;
+        const DUP = BTRFS_BLOCK_GROUP_DUP as u64;
+        const RAID0 = BTRFS_BLOCK_GROUP_RAID0 as u64;
+        const RAID1 = BTRFS_BLOCK_GROUP_RAID1 as u64;
+        const RAID5 = BTRFS_BLOCK_GROUP_RAID5 as u64;
+        const RAID6 = BTRFS_BLOCK_GROUP_RAID6 as u64;
+        const RAID10 = BTRFS_BLOCK_GROUP_RAID10 as u64;
+    }
+
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BlockGroup {
+    pub used: le::U64,
+    pub chunk_objectid: le::U64,
+    pub flags: BlockGroupFlag,
+}
+
+impl BlockGroup {
+    pub(crate) fn from_c_struct(block_group: btrfs_block_group_item) -> Result<Self, ()> {
+        Ok(Self {
+            used: le::U64::new(block_group.used),
+            chunk_objectid: le::U64::new(block_group.chunk_objectid),
+            flags: BlockGroupFlag::from_bits(block_group.flags).ok_or(())?,
+        })
+    }
 }
 
 impl Inode {

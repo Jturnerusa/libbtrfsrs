@@ -1,17 +1,17 @@
 use crate::item::{
-    DirIndex, DirItem, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode, InodeRef, Root,
-    RootRef,
+    BlockGroup, DirIndex, DirItem, FileExtentInline, FileExtentReg, FreeSpaceHeader, Inode,
+    InodeRef, Root, RootRef,
 };
 
 use btrfs_sys::{
-    btrfs_dir_item, btrfs_file_extent_item, btrfs_free_space_header, btrfs_inode_item,
-    btrfs_inode_ref, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header, btrfs_ioctl_search_key,
-    btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_TREE_OBJECTID, BTRFS_CHUNK_TREE_OBJECTID,
-    BTRFS_CSUM_TREE_OBJECTID, BTRFS_DEV_TREE_OBJECTID, BTRFS_EXTENT_TREE_OBJECTID,
-    BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC, BTRFS_FILE_EXTENT_REG,
-    BTRFS_FREE_SPACE_TREE_OBJECTID, BTRFS_FS_TREE_OBJECTID, BTRFS_IOCTL_MAGIC,
-    BTRFS_QUOTA_TREE_OBJECTID, BTRFS_ROOT_TREE_DIR_OBJECTID, BTRFS_ROOT_TREE_OBJECTID,
-    BTRFS_UUID_TREE_OBJECTID,
+    btrfs_block_group_item, btrfs_dir_item, btrfs_file_extent_item, btrfs_free_space_header,
+    btrfs_inode_item, btrfs_inode_ref, btrfs_ioctl_search_args_v2, btrfs_ioctl_search_header,
+    btrfs_ioctl_search_key, btrfs_root_item, btrfs_root_ref, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
+    BTRFS_CHUNK_TREE_OBJECTID, BTRFS_CSUM_TREE_OBJECTID, BTRFS_DEV_TREE_OBJECTID,
+    BTRFS_EXTENT_TREE_OBJECTID, BTRFS_FILE_EXTENT_INLINE, BTRFS_FILE_EXTENT_PREALLOC,
+    BTRFS_FILE_EXTENT_REG, BTRFS_FREE_SPACE_TREE_OBJECTID, BTRFS_FS_TREE_OBJECTID,
+    BTRFS_IOCTL_MAGIC, BTRFS_QUOTA_TREE_OBJECTID, BTRFS_ROOT_TREE_DIR_OBJECTID,
+    BTRFS_ROOT_TREE_OBJECTID, BTRFS_UUID_TREE_OBJECTID,
 };
 
 use crate::IOCTL_BUFF_SIZE;
@@ -47,6 +47,7 @@ pub enum Item {
     Inode(Inode),
     InodeRef(InodeRef),
     FreeSpaceHeader(FreeSpaceHeader),
+    BlockGroup(BlockGroup),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -349,7 +350,16 @@ impl Iterator for TreeSearch<'_> {
             KeyType::DevExtent => todo!("dev extent item"),
             KeyType::PersistentItem => todo!("persistence item"),
             KeyType::DevReplace => todo!("dev replace item"),
-            KeyType::BlockGroupItem => todo!("block group item"),
+            KeyType::BlockGroupItem => {
+                let block_group = unsafe {
+                    self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
+                        .as_ptr()
+                        .cast::<btrfs_block_group_item>()
+                        .read_unaligned()
+                };
+
+                Item::BlockGroup(BlockGroup::from_c_struct(block_group).unwrap())
+            }
             KeyType::ExtentData => {
                 let file_extent = unsafe {
                     self.args.buffer[self.bp + mem::size_of::<btrfs_ioctl_search_header>()..]
