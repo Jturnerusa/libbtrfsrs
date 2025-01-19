@@ -25,6 +25,7 @@ pub struct LogicalIno<'a> {
     bytenr: u64,
     container: Option<Container>,
     bp: usize,
+    ignore_offset: bool,
 }
 
 impl Default for Container {
@@ -40,12 +41,13 @@ impl Default for Container {
 }
 
 impl<'a> LogicalIno<'a> {
-    pub fn new(file: &'a File, bytenr: u64) -> Self {
+    pub fn new(file: &'a File, bytenr: u64, ignore_offset: bool) -> Self {
         Self {
             file,
             bytenr,
             container: None,
             bp: 0,
+            ignore_offset,
         }
     }
 }
@@ -61,7 +63,7 @@ impl Iterator for LogicalIno<'_> {
                 logical: self.bytenr,
                 size: IOCTL_BUFF_SIZE as u64,
                 reserved: Default::default(),
-                flags: 0,
+                flags: self.ignore_offset as u64,
                 inodes: (&mut container as *mut Container)
                     .cast::<btrfs_data_container>()
                     .addr() as u64,
