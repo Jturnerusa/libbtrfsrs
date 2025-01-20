@@ -20,6 +20,7 @@ use btrfs_sys::{
 pub use logical_ino::LogicalIno;
 use nix::libc::BTRFS_SUPER_MAGIC;
 pub use tree_search::TreeSearch;
+use tree_search::{Item, Tree};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
 
@@ -127,4 +128,18 @@ fn is_subvol(file: &File) -> nix::Result<bool> {
         && stat.st_ino == BTRFS_FIRST_FREE_OBJECTID as u64
         && stat.st_mode & nix::sys::stat::SFlag::S_IFMT.bits()
             == nix::sys::stat::SFlag::S_IFDIR.bits())
+}
+
+fn get_subvolume_name_from_id(id: u64, root: &File) -> Result<Option<PathBuf>, nix::Error> {
+    for item in TreeSearch::search_all(root, Tree::Root) {
+        match item {
+            Ok((key, Item::RootBackRef(root))) if key.objectid == id => {
+                return Ok(Some(root.name.clone()))
+            }
+            Ok(_) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+
+    Ok(None)
 }
