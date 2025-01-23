@@ -5,21 +5,27 @@ pub mod le;
 pub mod logical_ino;
 pub mod tree_search;
 
-use core::{ffi::CStr, mem, time};
+pub use btrfs_sys;
+pub use logical_ino::LogicalIno;
+pub use tree_search::TreeSearch;
+
+use core::{convert::AsRef, ffi::CStr, iter::Iterator, mem, str, time};
+
 use std::{
     ffi::OsStr,
     fs::File,
     os::{fd::AsRawFd, unix::ffi::OsStrExt},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-pub use btrfs_sys;
 use btrfs_sys::{
-    btrfs_ioctl_get_subvol_info_args, BTRFS_FIRST_FREE_OBJECTID, BTRFS_IOCTL_MAGIC, BTRFS_UUID_SIZE,
+    btrfs_ioctl_get_subvol_info_args, btrfs_ioctl_vol_args_v2,
+    btrfs_ioctl_vol_args_v2__bindgen_ty_2, BTRFS_FIRST_FREE_OBJECTID, BTRFS_IOCTL_MAGIC,
+    BTRFS_SUBVOL_RDONLY, BTRFS_UUID_SIZE,
 };
-pub use logical_ino::LogicalIno;
+
+use bitflags::bitflags;
 use nix::libc::BTRFS_SUPER_MAGIC;
-pub use tree_search::TreeSearch;
 use tree_search::{Item, Tree};
 
 const IOCTL_BUFF_SIZE: usize = 2usize.pow(16);
@@ -30,6 +36,27 @@ nix::ioctl_read!(
     60,
     btrfs_ioctl_get_subvol_info_args
 );
+
+nix::ioctl_write_ptr!(
+    btrfs_snap_create_v2,
+    BTRFS_IOCTL_MAGIC,
+    23,
+    btrfs_ioctl_vol_args_v2
+);
+
+nix::ioctl_write_ptr!(
+    btrfs_subvol_create_v2,
+    BTRFS_IOCTL_MAGIC,
+    24,
+    btrfs_ioctl_vol_args_v2
+);
+
+bitflags! {
+    #[derive(Clone, Copy, Debug)]
+    pub struct SubVolFlag: u64 {
+        const READ_ONLY = BTRFS_SUBVOL_RDONLY as u64;
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Compression {
@@ -83,6 +110,33 @@ impl<'a> Subvolume<'a> {
         Ok(SubvolInfo::from_c_struct(args))
     }
 
+    pub fn snapshot<T: AsRef<Path>>(
+        &self,
+        parent: &File,
+        name: T,
+        flags: SubVolFlag,
+    ) -> Result<(), nix::Error> {
+        let mut name_buf = [0i8; 4040];
+
+        for (i, byte) in name.as_ref().as_os_str().as_bytes().iter().enumerate() {
+            name_buf[i] = *byte as i8;
+        }
+
+        let args = btrfs_ioctl_vol_args_v2 {
+            fd: self.0.as_raw_fd() as i64,
+            transid: Default::default(),
+            flags: flags.bits(),
+            __bindgen_anon_1: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_1 {
+                unused: Default::default(),
+            },
+            __bindgen_anon_2: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_2 { name: name_buf },
+        };
+
+        unsafe { btrfs_snap_create_v2(parent.as_raw_fd(), &args as *const _)? };
+
+        Ok(())
+    }
+
     pub fn as_file(&self) -> &File {
         self.0
     }
@@ -118,6 +172,29 @@ impl SubvolInfo {
                 + time::Duration::from_nanos(info.rtime.nsec as u64),
         }
     }
+}
+
+pub fn create_subvolume<T: AsRef<Path>>(
+    parent: &File,
+    name: T,
+    flags: SubVolFlag,
+) -> Result<(), nix::Error> {
+    let mut args: btrfs_ioctl_vol_args_v2 = unsafe { mem::zeroed() };
+
+    args.flags = flags.bits();
+
+    let mut name_buf = [0i8; 4040];
+    let name_str = name.as_ref().as_os_str();
+
+    for (i, byte) in name_str.as_bytes().iter().enumerate() {
+        name_buf[i] = *byte as i8;
+    }
+
+    args.__bindgen_anon_2 = btrfs_ioctl_vol_args_v2__bindgen_ty_2 { name: name_buf };
+
+    unsafe { btrfs_subvol_create_v2(parent.as_raw_fd(), &args as *const _)? };
+
+    Ok(())
 }
 
 fn is_subvol(file: &File) -> nix::Result<bool> {

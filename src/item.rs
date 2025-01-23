@@ -1,8 +1,8 @@
 use crate::Uuid;
-use core::convert::{From, TryFrom};
+use core::convert::From;
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, time};
 
-use bitflags::{bitflags, Flags};
+use bitflags::bitflags;
 use btrfs_sys::{
     btrfs_block_group_item, btrfs_compression_type_BTRFS_COMPRESS_LZO,
     btrfs_compression_type_BTRFS_COMPRESS_NONE, btrfs_compression_type_BTRFS_COMPRESS_ZLIB,
