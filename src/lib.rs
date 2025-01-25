@@ -90,58 +90,6 @@ pub struct SubvolInfo {
     pub rtime: time::Duration,
 }
 
-#[derive(Clone, Debug)]
-pub struct Subvolume<'a>(&'a File);
-
-impl<'a> Subvolume<'a> {
-    pub fn new(file: &'a File) -> Result<Option<Self>, nix::Error> {
-        match is_subvol(file) {
-            Ok(true) => Ok(Some(Self(file))),
-            Ok(false) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub fn info(&self) -> nix::Result<SubvolInfo> {
-        let mut args: btrfs_ioctl_get_subvol_info_args = unsafe { mem::zeroed() };
-
-        unsafe { btrfs_get_subvol_info(self.0.as_raw_fd(), &mut args as *mut _)? };
-
-        Ok(SubvolInfo::from_c_struct(args))
-    }
-
-    pub fn snapshot<T: AsRef<Path>>(
-        &self,
-        parent: &File,
-        name: T,
-        flags: SubVolFlag,
-    ) -> Result<(), nix::Error> {
-        let mut name_buf = [0i8; 4040];
-
-        for (i, byte) in name.as_ref().as_os_str().as_bytes().iter().enumerate() {
-            name_buf[i] = *byte as i8;
-        }
-
-        let args = btrfs_ioctl_vol_args_v2 {
-            fd: self.0.as_raw_fd() as i64,
-            transid: Default::default(),
-            flags: flags.bits(),
-            __bindgen_anon_1: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_1 {
-                unused: Default::default(),
-            },
-            __bindgen_anon_2: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_2 { name: name_buf },
-        };
-
-        unsafe { btrfs_snap_create_v2(parent.as_raw_fd(), &args as *const _)? };
-
-        Ok(())
-    }
-
-    pub fn as_file(&self) -> &File {
-        self.0
-    }
-}
-
 impl SubvolInfo {
     pub(crate) fn from_c_struct(info: btrfs_ioctl_get_subvol_info_args) -> Self {
         Self {
@@ -174,6 +122,14 @@ impl SubvolInfo {
     }
 }
 
+pub fn info(subvol: &File) -> nix::Result<SubvolInfo> {
+    let mut args: btrfs_ioctl_get_subvol_info_args = unsafe { mem::zeroed() };
+
+    unsafe { btrfs_get_subvol_info(subvol.as_raw_fd(), &mut args as *mut _)? };
+
+    Ok(SubvolInfo::from_c_struct(args))
+}
+
 pub fn create_subvolume<T: AsRef<Path>>(
     parent: &File,
     name: T,
@@ -197,7 +153,34 @@ pub fn create_subvolume<T: AsRef<Path>>(
     Ok(())
 }
 
-fn is_subvol(file: &File) -> nix::Result<bool> {
+pub fn create_snapshot<T: AsRef<Path>>(
+    parent: &File,
+    subvol: &File,
+    name: T,
+    flags: SubVolFlag,
+) -> Result<(), nix::Error> {
+    let mut name_buf = [0i8; 4040];
+
+    for (i, byte) in name.as_ref().as_os_str().as_bytes().iter().enumerate() {
+        name_buf[i] = *byte as i8;
+    }
+
+    let args = btrfs_ioctl_vol_args_v2 {
+        fd: subvol.as_raw_fd() as i64,
+        transid: Default::default(),
+        flags: flags.bits(),
+        __bindgen_anon_1: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_1 {
+            unused: Default::default(),
+        },
+        __bindgen_anon_2: btrfs_sys::btrfs_ioctl_vol_args_v2__bindgen_ty_2 { name: name_buf },
+    };
+
+    unsafe { btrfs_snap_create_v2(parent.as_raw_fd(), &args as *const _)? };
+
+    Ok(())
+}
+
+pub fn is_subvol(file: &File) -> nix::Result<bool> {
     let statfs = nix::sys::statfs::fstatfs(file)?;
     let stat = nix::sys::stat::fstat(file.as_raw_fd())?;
 

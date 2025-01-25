@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use libbtrfsrs::{SubVolFlag, Subvolume};
+use libbtrfsrs::SubVolFlag;
 
 const IMAGE_SIZE: u64 = 114294784;
 
@@ -90,10 +90,10 @@ fn test_create_subvolume() {
 
         libbtrfsrs::create_subvolume(&mnt_parent, subvol_name, SubVolFlag::empty())?;
 
-        {
-            let subvol_file = File::open(mnt_path.join(subvol_name))?;
+        let subvol_file = File::open(mnt_path.join(subvol_name))?;
 
-            Subvolume::new(&subvol_file)?;
+        if !libbtrfsrs::is_subvol(&subvol_file)? {
+            Err("failed to create subvolume".to_string())?
         }
 
         Ok(())
@@ -112,19 +112,22 @@ fn test_create_snapshot() {
         {
             let subvol_file = File::open(mnt_path.join(subvol_name))?;
 
-            let subvol = match Subvolume::new(&subvol_file) {
-                Ok(Some(subvol)) => subvol,
-                Ok(None) => Err("not a subvolume?".to_string())?,
-                Err(e) => Err(e)?,
-            };
+            if !libbtrfsrs::is_subvol(&subvol_file)? {
+                Err("failed to create subvolume".to_string())?
+            }
 
-            subvol.snapshot(&mnt_parent, snapshot_name, SubVolFlag::empty())?;
+            libbtrfsrs::create_snapshot(
+                &mnt_parent,
+                &subvol_file,
+                snapshot_name,
+                SubVolFlag::empty(),
+            )?;
 
-            match Subvolume::new(&subvol_file) {
-                Ok(Some(subvol)) => subvol,
-                Ok(None) => Err("not a subvolume?".to_string())?,
-                Err(e) => Err(e)?,
-            };
+            let snapshot_file = File::open(mnt_path.join(snapshot_name))?;
+
+            if !libbtrfsrs::is_subvol(&snapshot_file)? {
+                Err("failed to create subvolume".to_string())?
+            }
         }
 
         Ok(())
@@ -143,19 +146,16 @@ fn test_create_ro_snapshot() {
         {
             let subvol_file = File::open(mnt_path.join(subvol_name))?;
 
-            let subvol = match Subvolume::new(&subvol_file) {
-                Ok(Some(subvol)) => subvol,
-                Ok(None) => Err("not a subvolume?".to_string())?,
-                Err(e) => Err(e)?,
-            };
+            if !libbtrfsrs::is_subvol(&subvol_file)? {
+                Err("failed to create subvolume".to_string())?
+            }
 
-            subvol.snapshot(&mnt_parent, snapshot_name, SubVolFlag::READ_ONLY)?;
-
-            match Subvolume::new(&subvol_file) {
-                Ok(Some(subvol)) => subvol,
-                Ok(None) => Err("not a subvolume?".to_string())?,
-                Err(e) => Err(e)?,
-            };
+            libbtrfsrs::create_snapshot(
+                &mnt_parent,
+                &subvol_file,
+                snapshot_name,
+                SubVolFlag::READ_ONLY,
+            )?;
 
             match File::create(mnt_path.join(snapshot_name).as_path().join("testfile")) {
                 Ok(_) => Err("snapshot is not read-only".to_string())?,
